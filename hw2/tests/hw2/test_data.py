@@ -4,7 +4,7 @@ sys.path.append("./python")
 import needle as ndl
 import numpy as np
 
-import mugrade
+# import mugrade
 
 
 def test_flip_horizontal():
@@ -10853,6 +10853,15 @@ def test_dataloader_mnist():
         truth = mnist_train_dataset[i * batch_size : (i + 1) * batch_size]
         truth_x = truth[0] if truth[0].shape[0] > 1 else truth[0].reshape(-1)
         truth_y = truth[1] if truth[1].shape[0] > 1 else truth[1].reshape(-1)
+        print("truth_x shape:", truth_x.shape)
+        print("batch_x shape:", batch_x.shape)
+        print("batch_x flatten:", batch_x.flatten().shape)
+        print("truth_x flatten:", truth_x.flatten().shape)
+        print("diff:", np.abs(batch_x.flatten() - truth_x.flatten()).sum())
+        print("sum diff:", np.abs(batch_x.flatten() - truth_x.flatten()).sum())
+        print("max diff:", np.max(np.abs(batch_x.flatten() - truth_x.flatten())))
+
+        break
 
         np.testing.assert_allclose(truth_x, batch_x.flatten())
         np.testing.assert_allclose(batch_y, truth_y)

@@ -128,6 +128,8 @@ class Value:
         TENSOR_COUNTER += 1
         if requires_grad is None:
             requires_grad = any(x.requires_grad for x in inputs)
+        else:
+            self.grad = None
         self.op = op
         self.inputs = inputs
         self.num_outputs = num_outputs
@@ -358,9 +360,9 @@ class Tensor(Value):
     def transpose(self, axes=None):
         return needle.ops.Transpose(axes)(self)
 
-
     __radd__ = __add__
     __rmul__ = __mul__
+
 
 
 
@@ -380,28 +382,90 @@ def compute_gradient_of_variables(output_tensor, out_grad):
     reverse_topo_order = list(reversed(find_topo_sort([output_tensor])))
 
     ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
+    for node in reverse_topo_order:
+        if node not in node_to_output_grads_list:
+            continue
+        out_grads = node_to_output_grads_list[node]
+        node_to_output_grads_list[node] = []
+        total_out_grad = sum_node_list(out_grads)
+        if node.is_leaf():
+            node.grad = total_out_grad
+        else:
+            input_grads = node.op.gradient_as_tuple(total_out_grad, node)
+            for i, input_node in enumerate(node.inputs):
+                if input_node not in node_to_output_grads_list:
+                    node_to_output_grads_list[input_node] = []
+                node_to_output_grads_list[input_node].append(input_grads[i])
     ### END YOUR SOLUTION
 
 
+# 写成了反向传播的拓扑排序 其实正向传播就行 然后反向reverse就行
+# def find_topo_sort(node_list: List[Value]) -> List[Value]:
+#     """Given a list of nodes, return a topological sort list of nodes ending in them.
+
+#     A simple algorithm is to do a post-order DFS traversal on the given nodes,
+#     going backwards based on input edges. Since a node is added to the ordering
+#     after all its predecessors are traversed due to post-order DFS, we get a topological
+#     sort.
+#     """
+#     ### BEGIN YOUR SOLUTION
+#     q = []
+#     qq = []
+#     dic = {}
+#     visited = set()
+#     topo_order = []
+#     while node_list:
+#         node = node_list.pop()
+#         if node not in visited:
+#             qq.append(node)
+#             visited.add(node)
+#         node_list += node.inputs
+
+#     visited = set()
+#     node_list = qq
+#     for node in node_list:
+#         if node.is_leaf:
+#             q.append(node)
+#         for input in node.inputs:
+#             if input not in dic:
+#                 dic[input] = []
+#             dic[input].append(node)
+#     for node in q:
+#         topo_sort_dfs(node,dic, visited, topo_order)
+#     return topo_order
+#     ### END YOUR SOLUTION
+
+
+# def topo_sort_dfs(node, dic, visited, topo_order):
+#     """Post-order DFS"""
+#     ### BEGIN YOUR SOLUTION
+#     if node in visited:
+#         return
+#     if node not in dic:
+#         visited.add(node)
+#         topo_order.append(node)
+#         return
+#     for neighbor in dic[node]:
+#         topo_sort_dfs(neighbor, dic, visited, topo_order)
+#     visited.add(node)
+#     topo_order.append(node)
+#     ### END YOUR SOLUTION
 def find_topo_sort(node_list: List[Value]) -> List[Value]:
-    """Given a list of nodes, return a topological sort list of nodes ending in them.
+    visited = set()
+    topo_order = []
 
-    A simple algorithm is to do a post-order DFS traversal on the given nodes,
-    going backwards based on input edges. Since a node is added to the ordering
-    after all its predecessors are traversed due to post-order DFS, we get a topological
-    sort.
-    """
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
+    def dfs(node):
+        if node in visited:
+            return
+        visited.add(node)
+        for inp in node.inputs:
+            dfs(inp)
+        topo_order.append(node)
 
+    for node in node_list:
+        dfs(node)
 
-def topo_sort_dfs(node, visited, topo_order):
-    """Post-order DFS"""
-    ### BEGIN YOUR SOLUTION
-    raise NotImplementedError()
-    ### END YOUR SOLUTION
+    return topo_order
 
 
 ##############################

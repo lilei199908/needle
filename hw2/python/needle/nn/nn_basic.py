@@ -86,26 +86,35 @@ class Linear(Module):
         self.out_features = out_features
 
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.bias = None
+        self.weight = Parameter(
+            init.kaiming_uniform(
+                in_features, out_features, device=device, dtype=dtype, requires_grad=True
+            )
+        )
+        self.bias = Parameter(init.kaiming_uniform(out_features, 1, requires_grad=True).transpose()) if bias else None
         ### END YOUR SOLUTION
 
     def forward(self, X: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        out = X.matmul(self.weight)
+        if self.bias:
+            out += self.bias.broadcast_to(out.shape)
+        return out
         ### END YOUR SOLUTION
 
 
 class Flatten(Module):
     def forward(self, X: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return X.reshape((X.shape[0], -1))
         ### END YOUR SOLUTION
 
 
 class ReLU(Module):
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return ops.relu(x)
         ### END YOUR SOLUTION
 
 class Sequential(Module):
@@ -115,14 +124,23 @@ class Sequential(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        for module in self.modules:
+            x = module(x)
+        return x
         ### END YOUR SOLUTION
 
 
 class SoftmaxLoss(Module):
-    def forward(self, logits: Tensor, y: Tensor) -> Tensor:
+    def forward(self, logits: Tensor, y: Tensor):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        # z_y = init.one_hot()
+        # breakpoint()
+        log_sum_exp = ops.logsumexp(logits, axes=(-1, ))
+
+        z_y = init.one_hot(logits.shape[1], y, device=logits.device)
+        ans = log_sum_exp.sum() - (z_y * logits).sum()
+        return ans / logits.shape[0]
+        # raise NotImplementedError()
         ### END YOUR SOLUTION
 
 
@@ -133,12 +151,28 @@ class BatchNorm1d(Module):
         self.eps = eps
         self.momentum = momentum
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.weight  = Parameter(
+            init.ones(dim, device=device, dtype=dtype, requires_grad=True)
+        )
+        self.bias  = Parameter(
+            init.zeros(dim, device=device, dtype=dtype, requires_grad=True)
+        )
+        self.running_mean = init.zeros(dim, device=device, dtype=dtype, requires_grad=False)
+        self.running_var = init.ones(dim, device=device, dtype=dtype, requires_grad=False)
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.training:
+            batch_mean = x.sum((0,)) / x.shape[0]
+            batch_var = ((x - batch_mean.broadcast_to(x.shape))**2).sum((0,)) / x.shape[0]
+            self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * batch_mean.data
+            self.running_var = (1 - self.momentum) * self.running_var + self.momentum * batch_var.data
+            norm = (x - batch_mean.broadcast_to(x.shape)) / (batch_var.broadcast_to(x.shape) + self.eps)**0.5
+            return self.weight.broadcast_to(x.shape) * norm + self.bias.broadcast_to(x.shape)
+        else:
+            norm = (x - self.running_mean.broadcast_to(x.shape)) / (self.running_var.broadcast_to(x.shape) + self.eps)**0.5
+            return self.weight.broadcast_to(x.shape) * norm + self.bias.broadcast_to(x.shape)
         ### END YOUR SOLUTION
 
 
@@ -149,12 +183,20 @@ class LayerNorm1d(Module):
         self.dim = dim
         self.eps = eps
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.weight  = Parameter(
+            init.ones(dim, device=device, dtype=dtype, requires_grad=True)
+        )
+        self.bias  = Parameter(
+            init.zeros(dim, device=device, dtype=dtype, requires_grad=True)
+        )
         ### END YOUR SOLUTION
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        mean = (x.sum((1,))/x.shape[1]).reshape((x.shape[0], 1)).broadcast_to(x.shape)
+        var = (((x - mean)**2).sum((1,))/x.shape[1]).reshape((x.shape[0], 1)).broadcast_to(x.shape)
+        deno = (var + self.eps)**0.5
+        return self.weight.broadcast_to(x.shape) * (x - mean)/deno + self.bias.broadcast_to(x.shape)
         ### END YOUR SOLUTION
 
 
@@ -165,7 +207,10 @@ class Dropout(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.training:
+            mask = init.randb(*x.shape, p=1 - self.p, device=x.device, dtype=x.dtype)
+            return (x * mask) / (1 - self.p)
+        return x
         ### END YOUR SOLUTION
 
 
@@ -176,5 +221,5 @@ class Residual(Module):
 
     def forward(self, x: Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        return x + self.fn(x)
         ### END YOUR SOLUTION

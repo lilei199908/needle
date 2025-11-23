@@ -1,7 +1,7 @@
 """Optimization module"""
 import needle as ndl
 import numpy as np
-
+from collections import defaultdict
 
 class Optimizer:
     def __init__(self, params):
@@ -24,9 +24,21 @@ class SGD(Optimizer):
         self.weight_decay = weight_decay
 
     def step(self):
-        ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
-        ### END YOUR SOLUTION
+        for w in self.params:
+            if w.grad is None:
+                continue
+            grad = w.grad.data
+            if self.weight_decay != 0:
+                grad = grad + self.weight_decay * w.data
+            # init momentum buffer with correct shape/dtype
+            if w not in self.u:
+                self.u[w] = np.zeros_like(w.data)
+            # momentum update
+            self.u[w] = self.momentum * self.u[w] + (1 - self.momentum) * grad
+
+            # SGD update
+            w.data = w.data - self.lr * self.u[w]
+
 
     def clip_grad_norm(self, max_norm=0.25):
         """
@@ -61,5 +73,22 @@ class Adam(Optimizer):
 
     def step(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.t += 1
+        for w in self.params:
+            if w.grad is None:
+                continue
+            grad = w.grad.data
+            if self.weight_decay != 0:
+                grad = grad + self.weight_decay * w.data
+            # init momentum buffer with correct shape/dtype
+            if w not in self.v:
+                self.v[w] = np.zeros_like(w.data)
+                self.m[w] = np.zeros_like(w.data)
+            # momentum update
+            self.v[w] = self.beta1 * self.v[w] + (1 - self.beta1) * grad
+            self.m[w] = self.beta2 * self.m[w] + (1 - self.beta2) * (grad ** 2)
+            v_corrected = self.v[w] / (1 - self.beta1 ** self.t)
+            m_corrected = self.m[w] / (1 - self.beta2 ** self.t)
+            # SGD update
+            w.data = w.data - self.lr * v_corrected / (m_corrected ** 0.5 + self.eps)
         ### END YOUR SOLUTION
